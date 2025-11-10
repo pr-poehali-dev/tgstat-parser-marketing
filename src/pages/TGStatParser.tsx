@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+import ParsingHistory from '@/components/ParsingHistory';
 
 interface Channel {
   id: number;
@@ -53,111 +54,69 @@ export default function TGStatParser() {
     setStats({ total: 0, success: 0, errors: 0 });
 
     addLog('info', '🚀 Инициализация парсера...');
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    addLog('success', '✓ Браузер запущен (Playwright)');
-    await new Promise(resolve => setTimeout(resolve, 600));
-    
-    addLog('info', '→ Переход на https://tgstat.ru');
+    addLog('success', '✓ Подключение к backend API');
     setProgress(10);
-    await new Promise(resolve => setTimeout(resolve, 700));
+    await new Promise(resolve => setTimeout(resolve, 400));
     
-    addLog('info', '→ Открытие категории "Маркетинг и PR"');
-    setProgress(20);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    addLog('info', '→ Запрос данных из TGStat...');
+    setProgress(30);
 
-    const mockChannels: Channel[] = [
-      {
-        id: 1,
-        name: 'Маркетинг с нуля',
-        link: 'https://t.me/marketing_zero',
-        description: 'Практические советы по маркетингу для начинающих. Кейсы, инструменты, стратегии продвижения.',
-        admin: 'https://t.me/admin_marketing',
-        category: 'Маркетинг и PR',
-        subcategory: 'SMM',
-        subscribers: 45000
-      },
-      {
-        id: 2,
-        name: 'PR Daily',
-        link: 'https://t.me/pr_daily',
-        description: 'Ежедневные новости из мира PR и коммуникаций. Тренды, аналитика, инсайты.',
-        admin: 'https://t.me/pr_expert',
-        category: 'Маркетинг и PR',
-        subcategory: 'PR',
-        subscribers: 32000
-      },
-      {
-        id: 3,
-        name: 'Growth Hacking',
-        link: 'https://t.me/growth_hacks',
-        description: 'Лучшие тактики роста и масштабирования бизнеса. Кейсы успешных стартапов.',
-        admin: 'https://t.me/growth_admin',
-        category: 'Маркетинг и PR',
-        subcategory: 'Growth',
-        subscribers: 28000
-      },
-      {
-        id: 4,
-        name: 'Контент-маркетинг Pro',
-        link: 'https://t.me/content_marketing_pro',
-        description: 'Стратегии контент-маркетинга, копирайтинг, создание вирусного контента.',
-        admin: 'https://t.me/content_admin',
-        category: 'Маркетинг и PR',
-        subcategory: 'Контент',
-        subscribers: 38000
-      },
-      {
-        id: 5,
-        name: 'Email Marketing Hub',
-        link: 'https://t.me/email_marketing_hub',
-        description: 'Email-рассылки, автоворонки, конверсия. Практические руководства и инструменты.',
-        admin: 'https://t.me/email_expert',
-        category: 'Маркетинг и PR',
-        subcategory: 'Email',
-        subscribers: 22000
-      },
-      {
-        id: 6,
-        name: 'Таргетированная реклама',
-        link: 'https://t.me/target_ads',
-        description: 'Все о таргете в соцсетях: ВК, Instagram, Facebook. Кейсы и разборы кампаний.',
-        admin: 'https://t.me/target_admin',
-        category: 'Маркетинг и PR',
-        subcategory: 'SMM',
-        subscribers: 41000
+    try {
+      const response = await fetch('https://functions.poehali.dev/2d28d966-7ce4-42c2-81b4-c5369b25f029', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, max_channels: 50 })
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка при запросе к API');
       }
-    ];
 
-    const subcategories = ['SMM', 'PR', 'Growth', 'Контент', 'Email'];
-    let channelCount = 0;
-
-    for (const sub of subcategories) {
-      addLog('info', `→ Сканирование подкатегории: ${sub}`);
-      setProgress(30 + (subcategories.indexOf(sub) * 10));
-      await new Promise(resolve => setTimeout(resolve, 1200));
-
-      const subChannels = mockChannels.filter(ch => ch.subcategory === sub);
+      const data = await response.json();
       
-      for (const channel of subChannels) {
-        channelCount++;
-        addLog('success', `✓ Найден канал: ${channel.name} (${channel.subscribers?.toLocaleString()} подписчиков)`);
-        setChannels(prev => [...prev, channel]);
-        setStats(prev => ({ ...prev, total: channelCount, success: channelCount }));
-        await new Promise(resolve => setTimeout(resolve, 400));
+      addLog('success', `✓ Получено ${data.total} каналов`);
+      setProgress(60);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const channelsWithId = data.channels.map((ch: any, idx: number) => ({
+        ...ch,
+        id: idx + 1
+      }));
+
+      setChannels(channelsWithId);
+      setStats({ total: data.total, success: data.total, errors: 0 });
+
+      addLog('info', '→ Сохранение в базу данных...');
+      setProgress(80);
+
+      const saveResponse = await fetch('https://functions.poehali.dev/2a2f1f59-72c2-4373-92a1-278ad2f7c8e7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'Маркетинг и PR',
+          status: 'completed',
+          channels: data.channels
+        })
+      });
+
+      if (saveResponse.ok) {
+        const saveData = await saveResponse.json();
+        addLog('success', `✓ Сохранено в БД: ${saveData.saved_channels} каналов (parsing_id: ${saveData.parsing_id})`);
       }
+
+      setProgress(100);
+      addLog('success', '✓ Парсинг завершён успешно!');
+      
+      setIsRunning(false);
+      toast.success(`Собрано ${data.total} каналов и сохранено в базу`);
+    } catch (error) {
+      addLog('error', `✗ Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+      setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
+      setIsRunning(false);
+      toast.error('Ошибка при парсинге');
     }
-
-    setProgress(90);
-    addLog('info', '→ Сохранение данных в Excel...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    setProgress(100);
-    addLog('success', `✓ Парсинг завершён! Найдено каналов: ${channelCount}`);
-    addLog('success', '✓ Файл сохранён: tgstat_marketing.xlsx');
-    
-    setIsRunning(false);
-    toast.success(`Парсинг завершён! Собрано ${channelCount} каналов`);
   };
 
   const exportToExcel = () => {
@@ -299,6 +258,10 @@ export default function TGStatParser() {
             <TabsTrigger value="stats" className="data-[state=active]:bg-[#0EA5E9]">
               <Icon name="BarChart3" size={16} className="mr-2" />
               Статистика
+            </TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-[#0EA5E9]">
+              <Icon name="History" size={16} className="mr-2" />
+              История
             </TabsTrigger>
           </TabsList>
 
@@ -458,6 +421,11 @@ export default function TGStatParser() {
                 )}
               </Card>
             </div>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history">
+            <ParsingHistory />
           </TabsContent>
         </Tabs>
       </div>

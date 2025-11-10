@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "GET - Получение истории парсинга",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST - Сохранение результатов парсинга",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "category": "Маркетинг и PR",
+        "status": "completed",
+        "channels": [
+          {
+            "name": "Test Channel",
+            "link": "https://t.me/test",
+            "description": "Test description",
+            "admin": "https://t.me/admin",
+            "category": "Маркетинг и PR",
+            "subcategory": "SMM",
+            "subscribers": 1000
+          }
+        ]
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

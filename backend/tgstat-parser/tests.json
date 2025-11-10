@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "GET - Проверка статуса API",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "service": "TGStat Parser API",
+        "status": "ready"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST - Парсинг каналов с категорией",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "category": "marketing",
+        "max_channels": 5
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "total": 5
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
